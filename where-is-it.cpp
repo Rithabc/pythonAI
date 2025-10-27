@@ -686,7 +686,18 @@ struct hash_pair
 int main()
 {
    
-    
+    vector<vector<int>> grid = generateGrid(10);
+
+    int **g = new int *[grid.size()];
+
+    for (int i = 0; i < grid.size(); i++)
+    {
+        for (int j = 0; j < grid.size(); j++)
+        {
+            cout << grid[i][j] << " ";
+        }
+        cout << endl;
+    }
 
   
 
