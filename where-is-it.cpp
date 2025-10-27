@@ -17,7 +17,6 @@
 #include <chrono>
 #include <fstream>
 
-
 namespace std
 {
     template <>
@@ -134,69 +133,40 @@ vector<vector<int>> generateGrid(int n)
 
     dfs(ind, ind, n, grid);
 
-    
-    
-    
-    
-    
-    
-    
-    
-    
     return grid;
 }
-
 
 int manhattan(int r1, int c1, int r2, int c2)
 {
     return abs(r1 - r2) + abs(c1 - c2);
 }
 
-
-
-
-
-
-
-
-
-
 typedef pair<int, int> Pair;
-
 
 typedef pair<double, pair<int, int>> pPair;
 
-
 struct cell
 {
-    
-    
+
     int parent_i, parent_j;
-    
+
     double f, g, h;
 };
 
-
-
 bool isValid(int row, int col, int size)
 {
-    
-    
+
     return (row >= 0) && (row < size) && (col >= 0) && (col < size);
 }
 
-
-
 bool isUnBlocked(int **grid, int row, int col)
 {
-    
+
     if (grid[row][col] == 0)
         return (true);
     else
         return (false);
 }
-
-
 
 bool isDestination(int row, int col, Pair dest)
 {
@@ -206,22 +176,17 @@ bool isDestination(int row, int col, Pair dest)
         return (false);
 }
 
-
 double calculateHValue(int row, int col, Pair dest)
 {
-    
-    return ((double)sqrt(
-        (row - dest.first) * (row - dest.first) + (col - dest.second) * (col - dest.second)));
+
+    return  exp(-0.5 * (manhattan(row, col, dest.first, dest.second) - 1));
 }
-
-
-
 
 vector<Pair> edit;
 vector<string> directions;
 void tracePath(vector<vector<cell>> cellDetails, Pair dest)
 {
-    
+
     int row = dest.first;
     int col = dest.second;
 
@@ -244,84 +209,68 @@ void tracePath(vector<vector<cell>> cellDetails, Pair dest)
     {
         pair<int, int> p = Path.top();
         Path.pop();
-        
-        
+
         if (p.first == tr - 1 && p.second == tc)
         {
-            
+
             edit.push_back(make_pair(-1, 0));
             directions.push_back("UP");
         }
         else if (p.first == tr + 1 && p.second == tc)
         {
-            
+
             edit.push_back(make_pair(1, 0));
             directions.push_back("DOWN");
         }
         else if (p.first == tr && p.second == tc - 1)
         {
-            
+
             edit.push_back(make_pair(0, -1));
             directions.push_back("LEFT");
         }
         else if (p.first == tr && p.second == tc + 1)
         {
-            
+
             edit.push_back(make_pair(0, 1));
             directions.push_back("RIGHT");
         }
         tr = p.first;
         tc = p.second;
-        
-
-        
     }
 
     return;
 }
 Pair tsrc, tdest;
 
-
-
-
 void aStarSearch(int **grid, Pair src, Pair dest, int size)
 {
-    
+
     if (isValid(src.first, src.second, size) == false)
     {
         printf("Source is invalid\n");
         return;
     }
 
-    
     if (isValid(dest.first, dest.second, size) == false)
     {
         printf("Destination is invalid\n");
         return;
     }
 
-    
     if (isUnBlocked(grid, src.first, src.second) == false || isUnBlocked(grid, dest.first, dest.second) == false)
     {
         printf("Source or the destination is blocked\n");
         return;
     }
 
-    
     if (isDestination(src.first, src.second, dest) == true)
     {
-        
+
         return;
     }
 
-    
-    
-    
     bool closedList[size][size];
     memset(closedList, false, sizeof(closedList));
-
-    
-    
 
     vector<vector<cell>> cellDetails(size, vector<cell>(size));
 
@@ -339,7 +288,6 @@ void aStarSearch(int **grid, Pair src, Pair dest, int size)
         }
     }
 
-    
     i = src.first, j = src.second;
     cellDetails[i][j].f = 0.0;
     cellDetails[i][j].g = 0.0;
@@ -347,74 +295,49 @@ void aStarSearch(int **grid, Pair src, Pair dest, int size)
     cellDetails[i][j].parent_i = i;
     cellDetails[i][j].parent_j = j;
 
-   
     set<pPair> openList;
 
-    
-    
     openList.insert(make_pair(0.0, make_pair(i, j)));
 
-    
-    
     bool foundDest = false;
 
     while (!openList.empty())
     {
         pPair p = *openList.begin();
 
-        
         openList.erase(openList.begin());
 
-        
         i = p.second.first;
         j = p.second.second;
         closedList[i][j] = true;
 
-       
-
-        
         double gNew, hNew, fNew;
 
-        
-
-        
         if (isValid(i - 1, j, size) == true)
         {
-            
-            
+
             if (isDestination(i - 1, j, dest) == true)
             {
-                
+
                 cellDetails[i - 1][j].parent_i = i;
                 cellDetails[i - 1][j].parent_j = j;
-                
+
                 tracePath(cellDetails, dest);
                 foundDest = true;
                 return;
             }
-            
-            
-            
+
             else if (closedList[i - 1][j] == false && isUnBlocked(grid, i - 1, j) == true)
             {
                 gNew = cellDetails[i][j].g + 1.0;
                 hNew = calculateHValue(i - 1, j, dest);
                 fNew = gNew + hNew;
 
-                
-                
-                
-                
-                
-                
-                
-                
                 if (cellDetails[i - 1][j].f == FLT_MAX || cellDetails[i - 1][j].f > fNew)
                 {
                     openList.insert(make_pair(
                         fNew, make_pair(i - 1, j)));
 
-                    
                     cellDetails[i - 1][j].f = fNew;
                     cellDetails[i - 1][j].g = gNew;
                     cellDetails[i - 1][j].h = hNew;
@@ -424,45 +347,31 @@ void aStarSearch(int **grid, Pair src, Pair dest, int size)
             }
         }
 
-        
-
-        
         if (isValid(i + 1, j, size) == true)
         {
-            
-            
+
             if (isDestination(i + 1, j, dest) == true)
             {
-                
+
                 cellDetails[i + 1][j].parent_i = i;
                 cellDetails[i + 1][j].parent_j = j;
-                
+
                 tracePath(cellDetails, dest);
                 foundDest = true;
                 return;
             }
-            
-            
-            
+
             else if (closedList[i + 1][j] == false && isUnBlocked(grid, i + 1, j) == true)
             {
                 gNew = cellDetails[i][j].g + 1.0;
                 hNew = calculateHValue(i + 1, j, dest);
                 fNew = gNew + hNew;
 
-                
-                
-                
-                
-                
-                
-                
-                
                 if (cellDetails[i + 1][j].f == FLT_MAX || cellDetails[i + 1][j].f > fNew)
                 {
                     openList.insert(make_pair(
                         fNew, make_pair(i + 1, j)));
-                    
+
                     cellDetails[i + 1][j].f = fNew;
                     cellDetails[i + 1][j].g = gNew;
                     cellDetails[i + 1][j].h = hNew;
@@ -472,47 +381,31 @@ void aStarSearch(int **grid, Pair src, Pair dest, int size)
             }
         }
 
-        
-
-        
         if (isValid(i, j + 1, size) == true)
         {
-            
-            
+
             if (isDestination(i, j + 1, dest) == true)
             {
-                
+
                 cellDetails[i][j + 1].parent_i = i;
                 cellDetails[i][j + 1].parent_j = j;
-                
+
                 tracePath(cellDetails, dest);
                 foundDest = true;
                 return;
             }
 
-            
-            
-            
             else if (closedList[i][j + 1] == false && isUnBlocked(grid, i, j + 1) == true)
             {
                 gNew = cellDetails[i][j].g + 1.0;
                 hNew = calculateHValue(i, j + 1, dest);
                 fNew = gNew + hNew;
 
-                
-                
-                
-                
-                
-                
-                
-                
                 if (cellDetails[i][j + 1].f == FLT_MAX || cellDetails[i][j + 1].f > fNew)
                 {
                     openList.insert(make_pair(
                         fNew, make_pair(i, j + 1)));
 
-                    
                     cellDetails[i][j + 1].f = fNew;
                     cellDetails[i][j + 1].g = gNew;
                     cellDetails[i][j + 1].h = hNew;
@@ -522,47 +415,31 @@ void aStarSearch(int **grid, Pair src, Pair dest, int size)
             }
         }
 
-        
-
-        
         if (isValid(i, j - 1, size) == true)
         {
-            
-            
+
             if (isDestination(i, j - 1, dest) == true)
             {
-                
+
                 cellDetails[i][j - 1].parent_i = i;
                 cellDetails[i][j - 1].parent_j = j;
-                
+
                 tracePath(cellDetails, dest);
                 foundDest = true;
                 return;
             }
 
-            
-            
-            
             else if (closedList[i][j - 1] == false && isUnBlocked(grid, i, j - 1) == true)
             {
                 gNew = cellDetails[i][j].g + 1.0;
                 hNew = calculateHValue(i, j - 1, dest);
                 fNew = gNew + hNew;
 
-                
-                
-                
-                
-                
-                
-                
-                
                 if (cellDetails[i][j - 1].f == FLT_MAX || cellDetails[i][j - 1].f > fNew)
                 {
                     openList.insert(make_pair(
                         fNew, make_pair(i, j - 1)));
 
-                    
                     cellDetails[i][j - 1].f = fNew;
                     cellDetails[i][j - 1].g = gNew;
                     cellDetails[i][j - 1].h = hNew;
@@ -573,11 +450,6 @@ void aStarSearch(int **grid, Pair src, Pair dest, int size)
         }
     }
 
-    
-    
-    
-    
-    
     if (foundDest == false)
         printf("Failed to find the Destination Cell\n");
 
@@ -586,19 +458,22 @@ void aStarSearch(int **grid, Pair src, Pair dest, int size)
 
 int minVal = 9999999;
 
-int algoUtil(int size, int **grid, Pair src, Pair dest, vector<pair<int, int>> bots, queue<Pair> temp ,bool random = true)
+int algoUtil(int size, int **grid, Pair src, Pair dest, vector<pair<int, int>> bots, queue<Pair> temp, bool random = true)
 {
     tsrc = src;
     tdest = dest;
     directions.clear();
     while (!temp.empty())
     {
-        
-        if(random){
-        int num = generateRandom(0, bots.size() - 1);
-        aStarSearch(grid, bots[num] , dest, size);
-        }else{
-        aStarSearch(grid, temp.front(), dest, size);
+
+        if (random)
+        {
+            int num = generateRandom(0, bots.size() - 1);
+            aStarSearch(grid, bots[num], dest, size);
+        }
+        else
+        {
+            aStarSearch(grid, temp.front(), dest, size);
         }
         if (directions.size() > minVal)
         {
@@ -606,7 +481,6 @@ int algoUtil(int size, int **grid, Pair src, Pair dest, vector<pair<int, int>> b
             edit.clear();
             return 9999999;
         }
-        
 
         for (int i = 0; i < bots.size(); i++)
         {
@@ -628,16 +502,9 @@ int algoUtil(int size, int **grid, Pair src, Pair dest, vector<pair<int, int>> b
                         bots[i].second -= edit[j].second;
                     }
                 }
-                
-                
-
-                
-                
-                
-
             }
         }
-        
+
         temp = queue<Pair>();
         for (int i = 0; i < bots.size(); i++)
         {
@@ -646,23 +513,13 @@ int algoUtil(int size, int **grid, Pair src, Pair dest, vector<pair<int, int>> b
             }
             else
             {
-                
+
                 temp.push(bots[i]);
             }
         }
         edit.clear();
-
-        
-        
-        
     }
-    
-    
-    
-    
-    
-    
-    
+
     if (directions.size() < minVal)
         minVal = directions.size();
     return directions.size();
@@ -670,39 +527,142 @@ int algoUtil(int size, int **grid, Pair src, Pair dest, vector<pair<int, int>> b
 
 struct hash_pair
 {
-   
+
     Pair p;
     vector<string> v;
     int len;
     hash_pair(Pair p, vector<string> v, int len) : p(p), v(v), len(len) {};
 };
 
-
-
-
-
-
-
-int main()
+void printGrid(float **grid, int n)
 {
-   
-    vector<vector<int>> grid = generateGrid(10);
-
-    int **g = new int *[grid.size()];
-
-    for (int i = 0; i < grid.size(); i++)
+    for (int i = 0; i < n; i++)
     {
-        for (int j = 0; j < grid.size(); j++)
+        for (int j = 0; j < n; j++)
         {
             cout << grid[i][j] << " ";
         }
         cout << endl;
     }
+}
 
-  
+void probability(float **grid, Pair locator, int a)
+{
+
+    for (int i = 0; i < 10; i++)
+    {
+        for (int j = 0; j < 10; j++)
+        {
+            if (grid[i][j] == 0)
+            {
+                float prob = exp(-a * (manhattan(locator.first, locator.second, i, j) - 1));
+                grid[i][j] = prob;
+            }
+            else
+            {
+            }
+        }
+        cout << endl;
+    }
+}
+
+void moveRoomba(Pair &roomba, vector<string> &directions)
+{
+    if (directions.size() == 0)
+    {
+        return;
+    }
+    string move = directions[0];
+    directions.erase(directions.begin());
+    if (move == "UP" && roomba.first > 0)
+    {
+        roomba.first -= 1;
+    }
+    else if (move == "DOWN" && roomba.first < 9)
+    {
+        roomba.first += 1;
+    }
+    else if (move == "LEFT" && roomba.second > 0)
+    {
+        roomba.second -= 1;
+    }
+    else if (move == "RIGHT" && roomba.second < 9)
+    {
+        roomba.second += 1;
+    }
+}
+
+int main()
+{
+
+    vector<vector<int>> grid = generateGrid(5);
+
+    int sense = 0;
+
+    float **g = new float *[grid.size()];
+    int **gr = new int *[grid.size()];
+
+    float sum = 0;
+    int count = 0;
+    vector<Pair> bots;
+    unordered_map<Pair, float> mp;
+    for (int i = 0; i < grid.size(); i++)
+    {
+        g[i] = new float[grid.size()];
+        gr[i] = new int[grid.size()];
+        for (int j = 0; j < grid.size(); j++)
+        {
+            g[i][j] = grid[i][j];
+            gr[i][j] = grid[i][j];
+            
+
+            if (grid[i][j] == 0)
+            {
+                bots.push_back(make_pair(i, j));
+                mp[make_pair(i, j)] = 0.0;
+            }
+        }
+        
+    }
+
+    Pair locator = bots[0];
+    cout << "Locator at: (" << locator.first << "," << locator.second << ")\n";
+
+    Pair roomba = bots[generateRandom(0, bots.size() - 1)];
+    cout << "Roomba initially at: (" << roomba.first << "," << roomba.second << ")\n";
+
+
+
+    grid[roomba.first][roomba.second] = 2;
+
+    grid[locator.first][locator.second] = 3;
+
+    for(int i=0;i<grid.size();i++)
+    {
+        for(int j=0;j<grid.size();j++)
+        {
+            // cout<<grid[i][j]<<" ";
+            float prob = exp(-0.5 * (manhattan(locator.first, locator.second, i, j) - 1));
+            if(grid[i][j]==1) cout << "X   "<< "";
+            else if (grid[i][j]==2) cout << "R   "<<"";
+            else if (grid[i][j]==3) cout << "L   "<<"";
+            else
+                
+            printf("%.1f ", prob);
+        }
+        cout<<endl;
+    }
+
+
+
+    aStarSearch(gr, roomba, locator, 5);
+    cout << "Roomba moving towards locator...\n";
+    for(string dir : directions)
+    {
+        cout << dir << " ";
+    }
 
 
 
 
-    
 }
