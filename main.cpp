@@ -320,6 +320,113 @@ void printBeliefMatrix(const unordered_map<Pair, float>& belief,
     cout << endl;
 }
 
+// Baseline Strategy 2
+int baselineStrategy2(int **grid, int size, Pair locatorStart, 
+                      Pair trueRoombaPos, float alpha, 
+                      vector<Pair> allOpenCells,
+                      const vector<vector<int>>& gridVec) {
+    
+    // Initialize uniform belief
+    unordered_map<Pair, float> belief;
+    for (auto cell : allOpenCells) {
+        belief[cell] = 1.0 / allOpenCells.size();
+    }
+    
+    Pair locator = locatorStart;
+    Pair roombaPos = trueRoombaPos; // Track actual roomba position
+    int totalActions = 0;
+    bool roombaFound = false;
+    
+    cout << "\n=== BASELINE STRATEGY 2 ===\n";
+    cout << "True Roomba Position (hidden): (" << roombaPos.first 
+         << ", " << roombaPos.second << ")\n";
+    cout << "Locator Start: (" << locator.first << ", " << locator.second << ")\n";
+    
+    cout << "\n--- Initial Belief ---";
+    printBeliefMatrix(belief, gridVec, locator);
+    
+    while (!roombaFound && totalActions < 10000) { // Safety limit
+        // Step 1: Run detector (sense action)
+        int beepResult = simulateBeep(locator, roombaPos, alpha);
+        totalActions++;
+        
+        cout << "\n========================================\n";
+        cout << "Action " << totalActions << ": SENSE at (" 
+             << locator.first << ", " << locator.second << ") - ";
+        
+        if (beepResult == 1) {
+            cout << "FOUND ROOMBA!\n";
+            roombaFound = true;
+            break;
+        }
+        
+        bool beepHeard = (beepResult == 0);
+        cout << (beepHeard ? "BEEP" : "NO BEEP") << "\n";
+        
+        // Step 2: Update probabilities
+        updateBelief(belief, locator, beepHeard, alpha, false);
+        
+        cout << "\n--- After Sensing ---";
+        printBeliefMatrix(belief, gridVec, locator);
+        
+        // Step 3: Get cell with maximal probability
+        Pair maxProbCell = getMaxProbabilityCell(belief);
+        float maxProb = belief[maxProbCell];
+        cout << "Max probability cell: (" << maxProbCell.first << ", " 
+             << maxProbCell.second << ") with prob=" << maxProb << "\n";
+        
+        // Step 4: Calculate path from maxProbCell to locator
+        directions.clear();
+        edit.clear();
+        aStarSearch(grid, maxProbCell, locator, size);
+        
+        // If already at destination, just continue sensing
+        if (directions.empty()) {
+            cout << "Max prob cell is at locator - continuing\n";
+            continue;
+        }
+        
+        // Step 5: Issue ONE command to move bot at maxProbCell closer to locator
+        string nextMove = directions[0];
+        totalActions++;
+        
+        cout << "\nAction " << totalActions << ": MOVE " << nextMove << "\n";
+        
+        // Update belief distribution after move
+        updateBeliefAfterMove(belief, nextMove, grid, size);
+        
+        cout << "\n--- After Move ---";
+        printBeliefMatrix(belief, gridVec, locator);
+        
+        // Update true roomba position (it also follows the command)
+        int newI = roombaPos.first;
+        int newJ = roombaPos.second;
+        if (nextMove == "UP") newI--;
+        else if (nextMove == "DOWN") newI++;
+        else if (nextMove == "LEFT") newJ--;
+        else if (nextMove == "RIGHT") newJ++;
+        
+        if (isValid(newI, newJ, size) && isUnBlocked(grid, newI, newJ)) {
+            roombaPos.first = newI;
+            roombaPos.second = newJ;
+        }
+        
+        cout << "Roomba now at: (" << roombaPos.first 
+             << ", " << roombaPos.second << ")\n";
+    }
+    
+    cout << "\n========================================\n";
+    cout << "=== RESULT ===\n";
+    cout << "Total Actions (Sense + Move): " << totalActions << "\n";
+    cout << "Roomba found at: (" << roombaPos.first 
+         << ", " << roombaPos.second << ")\n\n";
+    
+    return totalActions;
+}
+
+// Baseline Strategy 2 - FIXED
+// Original logic: Move Roomba at maxProbCell toward locator
+// Fix: Add termination condition when maxProbCell == locator
 int baselineStrategy2_fixed(int **grid, int size, Pair locatorStart, 
                             Pair trueRoombaPos, float alpha, 
                             vector<Pair> allOpenCells,
@@ -344,7 +451,7 @@ int baselineStrategy2_fixed(int **grid, int size, Pair locatorStart,
     cout << "\n--- Initial Belief ---";
     printBeliefMatrix(belief, gridVec, locator);
     
-    while (!roombaFound && totalActions < 100) { // Safety limit
+    while (!roombaFound && totalActions < 10000) { // Safety limit
         // Step 1: Run detector (sense action)
         int beepResult = simulateBeep(locator, roombaPos, alpha);
         totalActions++;
@@ -435,17 +542,10 @@ int baselineStrategy2_fixed(int **grid, int size, Pair locatorStart,
 vector<Pair> locatorPath; // Keep track of path
 // Baseline Strategy 2 - TRUE OPTIMIZATION
 // Move the LOCATOR toward the max probability cell
-
-
-
-
-// Baseline Strategy 2 - TRUE OPTIMIZED (FIXED WITH DETAILED OUTPUT)
-// Move the LOCATOR toward the max probability cell
-// Roomba stays stationary - NO belief propagation after moves
-int baselineStrategy2_trueOptimizedFixed(int **grid, int size, Pair locatorStart, 
-                                          Pair trueRoombaPos, float alpha, 
-                                          vector<Pair> allOpenCells,
-                                          const vector<vector<int>>& gridVec) {
+int baselineStrategy2_trueOptimized(int **grid, int size, Pair locatorStart, 
+                                     Pair trueRoombaPos, float alpha, 
+                                     vector<Pair> allOpenCells,
+                                     const vector<vector<int>>& gridVec) {
 
     // Initialize uniform belief
     unordered_map<Pair, float> belief;
@@ -454,13 +554,11 @@ int baselineStrategy2_trueOptimizedFixed(int **grid, int size, Pair locatorStart
     }
 
     Pair locator = locatorStart;
-    Pair roombaPos = trueRoombaPos; // Roomba position (stays still!)
+    Pair roombaPos = trueRoombaPos; // Track actual Roomba position (stays still)
     int totalActions = 0;
-    int senseCount = 0;
-    int moveCount = 0;
     bool roombaFound = false;
 
-    cout << "\n=== BASELINE STRATEGY 2 - TRUE OPTIMIZED (FIXED) ===\n";
+    cout << "\n=== BASELINE STRATEGY 2 - TRUE OPTIMIZED ===\n";
     cout << "True Roomba Position (hidden): (" << roombaPos.first 
          << ", " << roombaPos.second << ")\n";
     cout << "Locator Start: (" << locator.first << ", " << locator.second << ")\n";
@@ -469,10 +567,9 @@ int baselineStrategy2_trueOptimizedFixed(int **grid, int size, Pair locatorStart
         // Step 1: Sense at current locator position
         int beepResult = simulateBeep(locator, roombaPos, alpha);
         totalActions++;
-        senseCount++;
 
         cout << "\n========================================\n";
-        cout << "Action " << totalActions << " (SENSE #" << senseCount << "): SENSE at (" 
+        cout << "Action " << totalActions << ": SENSE at (" 
              << locator.first << ", " << locator.second << ") - ";
 
         if (beepResult == 1) {
@@ -516,9 +613,8 @@ int baselineStrategy2_trueOptimizedFixed(int **grid, int size, Pair locatorStart
         // Step 6: Move LOCATOR one step toward max probability cell
         string nextMove = directions[0];
         totalActions++;
-        moveCount++;
 
-        cout << "\nAction " << totalActions << " (MOVE #" << moveCount << "): MOVE LOCATOR " << nextMove << "\n";
+        cout << "\nAction " << totalActions << ": MOVE LOCATOR " << nextMove << "\n";
 
         // Update locator position
         int newI = locator.first;
@@ -540,28 +636,302 @@ int baselineStrategy2_trueOptimizedFixed(int **grid, int size, Pair locatorStart
                  << ", " << locator.second << ")\n";
         }
 
-        // CRITICAL: Roomba stays in place, so NO updateBeliefAfterMove!
-        // The belief about where the Roomba is doesn't change just because we moved
+        // Roomba stays in place (it's not moving)
+        // No belief update needed since we're just repositioning the sensor
         
         cout << "Roomba remains at: (" << roombaPos.first 
              << ", " << roombaPos.second << ")\n";
-        
-        // Next iteration will sense from new locator position and update belief
     }
 
     cout << "\n========================================\n";
     cout << "=== RESULT ===\n";
-    cout << "Total Actions: " << totalActions << "\n";
-    cout << "  - Sense actions: " << senseCount << "\n";
-    cout << "  - Move actions: " << moveCount << "\n";
+    cout << "Total Actions (Sense + Move): " << totalActions << "\n";
     cout << "Roomba found at: (" << roombaPos.first << ", " << roombaPos.second << ")\n";
     cout << "Locator ended at: (" << locator.first << ", " << locator.second << ")\n\n";
 
     return totalActions;
 }
 
+int baselineStrategy2_pathOnly(int **grid, int size, Pair locatorStart, 
+                      Pair trueRoombaPos, float alpha, 
+                      vector<Pair> allOpenCells) {
+    
+    unordered_map<Pair, float> belief;
+    for (auto cell : allOpenCells) {
+        belief[cell] = 1.0 / allOpenCells.size();
+    }
+    
+    Pair locator = locatorStart;
+    Pair roombaPos = trueRoombaPos;
+    bool roombaFound = false;
 
-int baselineStrategy2_trueOptimizedFixed2(int **grid, int size, Pair locatorStart, 
+    while (!roombaFound && locatorPath.size() < 10000) { // safety limit
+        // Step 1: sense
+        int beepResult = simulateBeep(locator, roombaPos, alpha);
+        if (beepResult == 1) { // found
+            roombaFound = true;
+            locatorPath.push_back(locator);
+            break;
+        }
+        bool beepHeard = (beepResult == 0);
+
+        // Step 2: update belief
+        updateBelief(belief, locator, beepHeard, alpha, false);
+
+        // Step 3: move to max probability cell
+        Pair maxProbCell = getMaxProbabilityCell(belief);
+        directions.clear();
+        edit.clear();
+        aStarSearch(grid, locator, maxProbCell, size); // move locator towards maxProbCell
+
+        if (!directions.empty()) {
+            string move = directions[0]; // take only 1 step
+            locatorPath.push_back(locator); // record current position
+
+            // move locator
+            if (move == "UP") locator.first--;
+            else if (move == "DOWN") locator.first++;
+            else if (move == "LEFT") locator.second--;
+            else if (move == "RIGHT") locator.second++;
+
+            // update belief after move
+            updateBeliefAfterMove(belief, move, grid, size);
+        }
+    }
+
+    // print the path
+    cout << "\nLocator Path to Roomba:\n";
+    for (auto p : locatorPath) {
+        cout << "(" << p.first << "," << p.second << ") ";
+    }
+    cout << "(" << locator.first << "," << locator.second << ") "; // final cell
+    cout << "\nTotal steps: " << locatorPath.size() << endl;
+
+    return locatorPath.size();
+}
+
+// Baseline Strategy 2 optimized with belief printing
+int baselineStrategy2_optimized(int **grid, int size, Pair locatorStart, 
+                                Pair trueRoombaPos, float alpha, 
+                                vector<Pair> allOpenCells,
+                                const vector<vector<int>>& gridVec) {
+
+    // Initialize uniform belief
+    unordered_map<Pair, float> belief;
+    for (auto cell : allOpenCells) {
+        belief[cell] = 1.0 / allOpenCells.size();
+    }
+
+    Pair locator = locatorStart;
+    Pair roombaPos = trueRoombaPos; // Track actual Roomba position
+    int totalActions = 0;
+    bool roombaFound = false;
+
+    cout << "\n=== BASELINE STRATEGY 2 OPTIMIZED ===\n";
+    cout << "True Roomba Position (hidden): (" << roombaPos.first 
+         << ", " << roombaPos.second << ")\n";
+    cout << "Locator Start: (" << locator.first << ", " << locator.second << ")\n";
+
+    while (!roombaFound && totalActions < 10000) { // Safety limit
+        // Step 1: Sense
+        int beepResult = simulateBeep(locator, roombaPos, alpha);
+        totalActions++;
+
+        cout << "\n========================================\n";
+        cout << "Action " << totalActions << ": SENSE at (" 
+             << locator.first << ", " << locator.second << ") - ";
+
+        if (beepResult == 1) {
+            cout << "FOUND ROOMBA!\n";
+            roombaFound = true;
+            break;
+        }
+
+        bool beepHeard = (beepResult == 0);
+        cout << (beepHeard ? "BEEP" : "NO BEEP") << "\n";
+
+        // Update belief after sensing
+        updateBelief(belief, locator, beepHeard, alpha, false);
+
+        // Print belief matrix
+        cout << "\n--- Belief After Sensing ---";
+        printBeliefMatrix(belief, gridVec, locator);
+
+        // Step 2: Get max probability cell
+        Pair maxProbCell = getMaxProbabilityCell(belief);
+        float maxProb = belief[maxProbCell];
+        cout << "Max probability cell: (" << maxProbCell.first << ", " 
+             << maxProbCell.second << ") with prob=" << maxProb << "\n";
+
+        // Step 3: Compute path from maxProbCell to locator
+        directions.clear();
+        edit.clear();
+        aStarSearch(grid, maxProbCell, locator, size);
+
+        if (directions.empty()) {
+            // Already at max probability cell
+            cout << "Max prob cell is at locator - continuing sensing\n";
+            continue;
+        }
+
+        // Step 4: Move bot one step toward locator
+        string nextMove = directions[0];
+        totalActions++;
+
+        cout << "\nAction " << totalActions << ": MOVE " << nextMove << "\n";
+
+        // Convert move string to delta coordinates
+        int di = 0, dj = 0;
+        if (nextMove == "UP") { di = -1; dj = 0; }
+        else if (nextMove == "DOWN") { di = 1; dj = 0; }
+        else if (nextMove == "LEFT") { di = 0; dj = -1; }
+        else if (nextMove == "RIGHT") { di = 0; dj = 1; }
+
+        // Locator stays in place (not moving)
+        locator.first += 0;
+        locator.second += 0;
+
+        // Update belief after move
+        updateBeliefAfterMove(belief, nextMove, grid, size);
+
+        // Print belief matrix after move
+        cout << "\n--- Belief After Move ---";
+        printBeliefMatrix(belief, gridVec, locator);
+
+        // Update actual Roomba position
+        int newI = roombaPos.first + di;
+        int newJ = roombaPos.second + dj;
+        if (isValid(newI, newJ, size) && isUnBlocked(grid, newI, newJ)) {
+            roombaPos.first = newI;
+            roombaPos.second = newJ;
+        }
+
+        cout << "Roomba now at: (" << roombaPos.first 
+             << ", " << roombaPos.second << ")\n";
+    }
+
+    cout << "\nTotal Actions (Sense + Move): " << totalActions << "\n";
+    cout << "Roomba found at: (" << roombaPos.first << ", " << roombaPos.second << ")\n\n";
+
+    return totalActions;
+}
+
+// Baseline Strategy 2 - TRUE OPTIMIZATION
+// Move the LOCATOR toward the max probability cell
+int baselineStrategy2_trueOptimized2(int **grid, int size, Pair locatorStart, 
+                                     Pair trueRoombaPos, float alpha, 
+                                     vector<Pair> allOpenCells,
+                                     const vector<vector<int>>& gridVec) {
+
+    // Initialize uniform belief
+    unordered_map<Pair, float> belief;
+    for (auto cell : allOpenCells) {
+        belief[cell] = 1.0 / allOpenCells.size();
+    }
+
+    Pair locator = locatorStart;
+    Pair roombaPos = trueRoombaPos; // Track actual Roomba position (stays still)
+    int totalActions = 0;
+    bool roombaFound = false;
+
+    cout << "\n=== BASELINE STRATEGY 2 - TRUE OPTIMIZED ===\n";
+    cout << "True Roomba Position (hidden): (" << roombaPos.first 
+         << ", " << roombaPos.second << ")\n";
+    cout << "Locator Start: (" << locator.first << ", " << locator.second << ")\n";
+
+    while (!roombaFound && totalActions < 10000) { // Safety limit
+        // Step 1: Sense at current locator position
+        int beepResult = simulateBeep(locator, roombaPos, alpha);
+        totalActions++;
+
+        cout << "\n========================================\n";
+        cout << "Action " << totalActions << ": SENSE at (" 
+             << locator.first << ", " << locator.second << ") - ";
+
+        if (beepResult == 1) {
+            cout << "FOUND ROOMBA!\n";
+            roombaFound = true;
+            break;
+        }
+
+        bool beepHeard = (beepResult == 0);
+        cout << (beepHeard ? "BEEP" : "NO BEEP") << "\n";
+
+        // Step 2: Update belief after sensing
+        updateBelief(belief, locator, beepHeard, alpha, false);
+
+        // Print belief matrix
+        cout << "\n--- Belief After Sensing ---";
+        printBeliefMatrix(belief, gridVec, locator);
+
+        // Step 3: Get max probability cell
+        Pair maxProbCell = getMaxProbabilityCell(belief);
+        float maxProb = belief[maxProbCell];
+        cout << "Max probability cell: (" << maxProbCell.first << ", " 
+             << maxProbCell.second << ") with prob=" << maxProb << "\n";
+
+        // Step 4: Check if already at max probability cell
+        if (locator.first == maxProbCell.first && locator.second == maxProbCell.second) {
+            cout << "Locator already at max prob cell - continuing sensing\n";
+            continue;
+        }
+
+        // Step 5: Compute path from locator to maxProbCell
+        directions.clear();
+        edit.clear();
+        aStarSearch(grid, locator, maxProbCell, size);
+
+        if (directions.empty()) {
+            cout << "No path found - continuing\n";
+            continue;
+        }
+
+        // Step 6: Move LOCATOR one step toward max probability cell
+        string nextMove = directions[0];
+        totalActions++;
+
+        cout << "\nAction " << totalActions << ": MOVE LOCATOR " << nextMove << "\n";
+
+        // Update locator position
+        int newI = locator.first;
+        int newJ = locator.second;
+        
+        if (nextMove == "UP") newI--;
+        else if (nextMove == "DOWN") newI++;
+        else if (nextMove == "LEFT") newJ--;
+        else if (nextMove == "RIGHT") newJ++;
+
+        // Check if move is valid
+        if (isValid(newI, newJ, size) && isUnBlocked(grid, newI, newJ)) {
+            locator.first = newI;
+            locator.second = newJ;
+            cout << "Locator moved to: (" << locator.first 
+                 << ", " << locator.second << ")\n";
+        } else {
+            cout << "Move blocked - locator stays at: (" << locator.first 
+                 << ", " << locator.second << ")\n";
+        }
+
+        // Roomba stays in place (it's not moving)
+        cout << "Roomba remains at: (" << roombaPos.first 
+             << ", " << roombaPos.second << ")\n";
+        
+        // The loop will continue and sense again from the new locator position
+    }
+
+    cout << "\n========================================\n";
+    cout << "=== RESULT ===\n";
+    cout << "Total Actions (Sense + Move): " << totalActions << "\n";
+    cout << "Roomba found at: (" << roombaPos.first << ", " << roombaPos.second << ")\n";
+    cout << "Locator ended at: (" << locator.first << ", " << locator.second << ")\n\n";
+
+    return totalActions;
+}
+
+// Baseline Strategy 2 - TRUE OPTIMIZATION (FIXED)
+// Move the LOCATOR toward the max probability cell
+// Roomba stays stationary - NO belief propagation after moves
+int baselineStrategy2_trueOptimizedFixed(int **grid, int size, Pair locatorStart, 
                                           Pair trueRoombaPos, float alpha, 
                                           vector<Pair> allOpenCells,
                                           const vector<vector<int>>& gridVec) {
@@ -582,7 +952,7 @@ int baselineStrategy2_trueOptimizedFixed2(int **grid, int size, Pair locatorStar
          << ", " << roombaPos.second << ")\n";
     cout << "Locator Start: (" << locator.first << ", " << locator.second << ")\n";
 
-    while (!roombaFound && totalActions < 100) { // Safety limit
+    while (!roombaFound && totalActions < 10000) { // Safety limit
         // Step 1: Sense at current locator position
         int beepResult = simulateBeep(locator, roombaPos, alpha);
         totalActions++;
@@ -676,6 +1046,8 @@ int baselineStrategy2_trueOptimizedFixed2(int **grid, int size, Pair locatorStar
 
 
 
+
+
 int main() {
     srand(time(0));
     
@@ -684,7 +1056,7 @@ int main() {
         {0, 0, 1, 0, 0},
         {0, 0, 1, 0, 0},
         {0, 0, 1, 0, 0},
-        {0, 1, 1, 0, 0},
+        {0, 1, 1, 1, 0},
         {0, 0, 0, 0, 0}
     };
     
@@ -712,14 +1084,14 @@ int main() {
     // Set up scenario
     Pair locatorStart = make_pair(0, 0);
     Pair trueRoombaPos = make_pair(4, 4);
-    float alpha = 0.1;
+    float alpha = 0.5;
     
     // Run baseline strategy 2
-    // int totalActions = baselineStrategy2_fixed(grid, n, locatorStart, 
-    //                                      trueRoombaPos, alpha, allOpenCells, gridVec);
+    int totalActions = baselineStrategy2_fixed(grid, n, locatorStart, 
+                                         trueRoombaPos, alpha, allOpenCells, gridVec);
 
     // int totalSteps = baselineStrategy2_pathOnly(grid, n, locatorStart, trueRoombaPos, alpha, allOpenCells);
-    int totalAction  = baselineStrategy2_trueOptimizedFixed2(grid, n, locatorStart, 
+    int totalAction  = baselineStrategy2_trueOptimizedFixed(grid, n, locatorStart, 
         trueRoombaPos, alpha, 
         allOpenCells, gridVec);
         
@@ -730,7 +1102,7 @@ int main() {
             cout << endl;
             cout << endl;
             cout << endl;
-            // cout << "\nTotal Actions in Baseline Strategy 2: " << totalActions << endl;
+            cout << "\nTotal Actions in Baseline Strategy 2: " << totalActions << endl;
             cout << "\nTotal Actions in Baseline Strategy 2 TRUE OPTIMIZED: " << totalAction << endl;
     // cout << "\nTotal Actions in Baseline Strategy 2 OPTIMIZED: " << totalActions2 << endl;
     
