@@ -715,13 +715,13 @@ int main() {
     float alpha = 0.1;
     
     // Run baseline strategy 2
-    // int totalActions = baselineStrategy2_fixed(grid, n, locatorStart, 
-    //                                      trueRoombaPos, alpha, allOpenCells, gridVec);
+    int totalActions = baselineStrategy2_fixed(grid, n, locatorStart, 
+                                         trueRoombaPos, alpha, allOpenCells, gridVec);
 
     // int totalSteps = baselineStrategy2_pathOnly(grid, n, locatorStart, trueRoombaPos, alpha, allOpenCells);
-    int totalAction  = baselineStrategy2_trueOptimizedFixed2(grid, n, locatorStart, 
-        trueRoombaPos, alpha, 
-        allOpenCells, gridVec);
+    // int totalAction  = baselineStrategy2_trueOptimizedFixed2(grid, n, locatorStart, 
+    //     trueRoombaPos, alpha, 
+    //     allOpenCells, gridVec);
         
         // int totalActions2 = baselineStrategy2_optimized(grid, n, locatorStart, 
         //     trueRoombaPos, alpha, 
@@ -731,7 +731,7 @@ int main() {
             cout << endl;
             cout << endl;
             // cout << "\nTotal Actions in Baseline Strategy 2: " << totalActions << endl;
-            cout << "\nTotal Actions in Baseline Strategy 2 TRUE OPTIMIZED: " << totalAction << endl;
+            cout << "\nTotal Actions in Baseline Strategy 2 TRUE OPTIMIZED: " << totalActions << endl;
     // cout << "\nTotal Actions in Baseline Strategy 2 OPTIMIZED: " << totalActions2 << endl;
     
     // Cleanup

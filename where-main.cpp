@@ -21,6 +21,7 @@
 #include <queue>
 #include <stack>
 #include <set>
+#include <iomanip>
 
 #include <cstring>
 
@@ -279,6 +280,91 @@ void updateBeliefAfterMove(unordered_map<Pair, float>& belief,
     belief = newBelief;
 }
 
+vector<int> baselineStrategy2_fixed(int **grid, int size, Pair locatorStart, 
+                            Pair trueRoombaPos, float alpha, 
+                            vector<Pair> allOpenCells,
+                            const vector<vector<int>>& gridVec) {
+    vector<int> ans;
+    
+    // Initialize uniform belief
+    unordered_map<Pair, float> belief;
+    for (auto cell : allOpenCells) {
+        belief[cell] = 1.0 / allOpenCells.size();
+    }
+    
+    Pair locator = locatorStart;
+    Pair roombaPos = trueRoombaPos; // Track actual roomba position
+    int totalActions = 0;
+    int senseCount = 0;
+    int moveCount = 0;
+    bool roombaFound = false;
+    
+    while (!roombaFound && totalActions < 500) { // Safety limit
+        // Step 1: Run detector (sense action)
+        int beepResult = simulateBeep(locator, roombaPos, alpha);
+        totalActions++;
+        senseCount++;
+        
+        if (beepResult == 1) {
+            roombaFound = true;
+            break;
+        }
+        
+        bool beepHeard = (beepResult == 0);
+        
+        // Step 2: Update probabilities
+        updateBelief(belief, locator, beepHeard, alpha, false);
+        
+        // Step 3: Get cell with maximal probability
+        Pair maxProbCell = getMaxProbabilityCell(belief);
+        float maxProb = belief[maxProbCell];
+        
+        // Step 4: Calculate path from maxProbCell to locator
+        directions.clear();
+        edit.clear();
+        aStarSearch(grid, maxProbCell, locator, size);
+        
+        // If already at destination, just continue sensing
+        if (directions.empty()) {
+            // FIX: Check if Roomba is actually at locator
+            if (roombaPos.first == locator.first && roombaPos.second == locator.second) {
+                // Will be found on next sense
+                continue;
+            }
+            
+            // If maxProb is at locator but Roomba isn't actually there,
+            // belief will update on next sense and we continue
+            continue;
+        }
+        
+        // Step 5: Issue ONE command to move bot at maxProbCell closer to locator
+        string nextMove = directions[0];
+        totalActions++;
+        moveCount++;
+        
+        // Update belief distribution after move
+        updateBeliefAfterMove(belief, nextMove, grid, size);
+        
+        // Update true roomba position (it also follows the command)
+        int newI = roombaPos.first;
+        int newJ = roombaPos.second;
+        if (nextMove == "UP") newI--;
+        else if (nextMove == "DOWN") newI++;
+        else if (nextMove == "LEFT") newJ--;
+        else if (nextMove == "RIGHT") newJ++;
+        
+        if (isValid(newI, newJ, size) && isUnBlocked(grid, newI, newJ)) {
+            roombaPos.first = newI;
+            roombaPos.second = newJ;
+        }
+    }
+    
+    ans.push_back(senseCount);
+    ans.push_back(moveCount);
+    ans.push_back(totalActions);
+    
+    return ans;
+}
 
 
 vector<int> baselineStrategy2_trueOptimized2(int **grid, int size, Pair locatorStart, 
@@ -300,7 +386,7 @@ vector<int> baselineStrategy2_trueOptimized2(int **grid, int size, Pair locatorS
     bool roombaFound = false;
     set<Pair> visitedCells;
 
-    while (!roombaFound && totalActions < 50) {
+    while (!roombaFound && totalActions < 500) {
         int beepResult = simulateBeep(locator, roombaPos, alpha);
         totalActions++;
         senseCount++;
@@ -497,16 +583,107 @@ vector<vector<int>> generateGrid(int n)
     return grid;
 }
 
+// Global variables for optimal algorithm
+Pair tsrc, tdest;
+int minVal = 9999999;
+
+// Optimal algorithm utility function
+int algoUtil(int size, int **grid, Pair src, Pair dest, vector<pair<int, int>> bots, queue<Pair> temp ,bool random = true)
+{
+    tsrc = src;
+    tdest = dest;
+    directions.clear();
+    while (!temp.empty())
+    {
+        
+        if(random){
+        int num = generateRandom(0, bots.size() - 1);
+        aStarSearch(grid, bots[num] , dest, size);
+        }else{
+        aStarSearch(grid, temp.front(), dest, size);
+        }
+        if (directions.size() > minVal)
+        {
+            directions.clear();
+            edit.clear();
+            return 9999999;
+        }
+        
+
+        for (int i = 0; i < bots.size(); i++)
+        {
+            for (int j = 0; j < edit.size(); j++)
+            {
+                if (bots[i].first == dest.first && bots[i].second == dest.second)
+                {
+                }
+                else
+                {
+                    if (bots[i].first + edit[j].first < 0 || bots[i].first + edit[j].first >= size || bots[i].second + edit[j].second < 0 || bots[i].second + edit[j].second >= size)
+                        continue;
+
+                    bots[i].first += edit[j].first;
+                    bots[i].second += edit[j].second;
+                    if (grid[bots[i].first][bots[i].second] == 1)
+                    {
+                        bots[i].first -= edit[j].first;
+                        bots[i].second -= edit[j].second;
+                    }
+                }
+                
+                
+
+                
+                
+                
+
+            }
+        }
+        
+        temp = queue<Pair>();
+        for (int i = 0; i < bots.size(); i++)
+        {
+            if (bots[i].first == dest.first && bots[i].second == dest.second)
+            {
+            }
+            else
+            {
+                
+                temp.push(bots[i]);
+            }
+        }
+        edit.clear();
+
+        
+        
+        
+    }
+    
+    
+    
+    
+    
+    
+    
+    if (directions.size() < minVal)
+        minVal = directions.size();
+    return directions.size();
+}
+
+// Simple optimal strategy - just finds shortest path from locator to roomba
+
 int main() {
     srand(time(0));
 
 
     
-    vector<vector<int>> gridVec = generateGrid(5);
+    vector<vector<int>> gridVec = generateGrid(20);
 
 
     
     int n = gridVec.size();
+    vector<Pair> bots;
+    queue<Pair> temp;
     
     int** grid = new int*[n];
     for (int i = 0; i < n; i++) {
@@ -514,6 +691,10 @@ int main() {
         for (int j = 0; j < n; j++) {
             // cout << gridVec[i][j] << " ";
             grid[i][j] = gridVec[i][j];
+            if (grid[i][j] == 0) {
+                bots.push_back(make_pair(i, j));
+                temp.push(make_pair(i, j));
+            }
         }
         // cout << endl;
     }
@@ -526,42 +707,91 @@ int main() {
             }
         }
     }
+
+    int max = 9999999;
+    Pair dest;
+    vector<string> optimalAns;
+
+    for (int a = bots.size() -1; a >= 0; a--)
+            {
+                
+                
+                   
+                        int optimal = algoUtil(n, grid, bots[0], bots[a], bots, temp,false);
+                        if (optimal < max)
+                        {
+                            minVal = optimal;
+                            max = optimal;
+                            optimalAns = directions;
+                            dest = bots[a];
+                        }
+                    
+                    
+            }
+
+    int ans = max;
     
     Pair locatorStart = allOpenCells[0];
     Pair trueRoombaPos = allOpenCells[generateRandom(0, allOpenCells.size() - 1)];
-    // float alpha = 0.5;
-    cout << "Sense" << " + Move" << " = Total Actions\n";
-    vector< vector<int> > alphaResults(26, vector<int>(3,0));
-    for(int i = 0; i < 10; i++) {
-
-    for(float alpha = 0.1; alpha <= 1.0; alpha += 0.1) {
-        // cout << alpha << " ";
-         vector<int> totalAction = baselineStrategy2_trueOptimized2(grid, n, locatorStart, 
-            trueRoombaPos, alpha, 
-            allOpenCells, gridVec);
-            // vector<int> results = alphaResults[alpha];
-            // results[0] += totalAction[0];
-            // results[1] += totalAction[1];
-            // results[2] += totalAction[2];
-            // alphaResults[alpha] = results;
-
-            alphaResults[(int)(alpha*10)-1][0] += totalAction[0];
-            alphaResults[(int)(alpha*10)-1][1] += totalAction[1];
-            alphaResults[(int)(alpha*10)-1][2] += totalAction[2];
-            // alphaResults[(int)(alpha*20)-1][0] += totalAction[0];
-            // alphaResults[(int)(alpha*20)-1][1] += totalAction[1];
-            // alphaResults[(int)(alpha*20)-1][2] += totalAction[2];
-
-        // cout << totalAction[0] << " " << totalAction[1] << " " << totalAction[2] << endl;
+    
+    cout << "Alpha | Baseline Strategy (Fixed) | True Optimized Strategy | Optimal Strategy\n";
+    cout << "      | Sense Move Total         | Sense Move Total        | Sense Move Total\n";
+    cout << "------|--------------------------|-------------------------|------------------\n";
+    
+    vector< vector<int> > baselineResults(10, vector<int>(3,0));
+    vector< vector<int> > optimizedResults(10, vector<int>(3,0));
+    vector< vector<int> > optimalResults(10, vector<int>(3,0));
+    
+    // Run optimal strategy once since it doesn't depend on alpha
+    
+    
+    for(int run = 0; run < 10; run++) {
+        for(float alpha = 0.1; alpha <= 1.0; alpha += 0.1) {
+            int alphaIndex = (int)(alpha*10)-1;
+            
+            // Run baseline strategy
+            vector<int> baselineAction = baselineStrategy2_fixed(grid, n, locatorStart, 
+                trueRoombaPos, alpha, allOpenCells, gridVec);
+            
+            baselineResults[alphaIndex][0] += baselineAction[0];
+            baselineResults[alphaIndex][1] += baselineAction[1];
+            baselineResults[alphaIndex][2] += baselineAction[2];
+            
+            // Run optimized strategy
+            vector<int> optimizedAction = baselineStrategy2_trueOptimized2(grid, n, locatorStart, 
+                trueRoombaPos, alpha, allOpenCells, gridVec);
+            
+            optimizedResults[alphaIndex][0] += optimizedAction[0];
+            optimizedResults[alphaIndex][1] += optimizedAction[1];
+            optimizedResults[alphaIndex][2] += optimizedAction[2];
+            
+            
+        }
     }
-}
    
-    cout << "Results over 10 runs:\n";
+    cout << "\nResults averaged over 10 runs:\n";
+    cout << "Alpha | Baseline Strategy (Fixed) | True Optimized Strategy | Optimal Strategy\n";
+    cout << "      | Sense Move Total         | Sense Move Total        | Sense Move Total\n";
+    cout << "------|--------------------------|-------------------------|------------------\n";
+    
+
     
     for(int i = 0; i < 10; i++) {
         float alpha = (i + 1) / 10.0;
-        vector<int> results = alphaResults[i];
-        cout << alpha << " " << results[0]/10 << " " << results[1]/10 << " " << results[2]/10 << endl;
+        vector<int> baselineAvg = baselineResults[i];
+        vector<int> optimizedAvg = optimizedResults[i];
+        vector<int> optimalAvg = optimalResults[i];
+        
+        cout << fixed << setprecision(1) << alpha << "   | " 
+             << setw(3) << baselineAvg[0]/10 << "  " 
+             << setw(3) << baselineAvg[1]/10 << "  " 
+             << setw(3) << baselineAvg[2]/10 << "         | " 
+             << setw(3) << optimizedAvg[0]/10 << "  " 
+             << setw(3) << optimizedAvg[1]/10 << "  " 
+             << setw(3) << optimizedAvg[2]/10 << "         | " 
+             << setw(3) << 0<< "  " 
+             << setw(3) << ans << "  " 
+             << setw(3) << ans << endl;
     }
 
     // for(int i = 0; i < 26; i++) {
