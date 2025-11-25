@@ -733,10 +733,7 @@ int main() {
     
     Pair locatorStart = allOpenCells[0];
     Pair trueRoombaPos = allOpenCells[generateRandom(0, allOpenCells.size() - 1)];
-    
-    cout << "Alpha | Baseline Strategy (Fixed) | True Optimized Strategy | Optimal Strategy\n";
-    cout << "      | Sense Move Total         | Sense Move Total        | Sense Move Total\n";
-    cout << "------|--------------------------|-------------------------|------------------\n";
+   
     
     vector< vector<int> > baselineResults(10, vector<int>(3,0));
     vector< vector<int> > optimizedResults(10, vector<int>(3,0));
