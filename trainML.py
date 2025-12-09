@@ -142,16 +142,7 @@ print(f"R² Score: {score:.3f}")
 # for i, name in enumerate(['size', 'obstacles', 'density', 'free_cells']):
     # print(f"  {name}: {X[:, i].min():.1f} - {X[:, i].max():.1f}")
 
-# 0 0 1 0 0 0 0 1 1 0 
-# 1 0 0 1 0 1 0 0 0 0
-# 1 1 0 0 0 1 1 1 1 0
-# 1 0 0 1 0 0 0 0 0 1
-# 0 0 1 0 0 1 0 1 0 0
-# 0 1 0 1 1 0 1 1 1 0
-# 0 1 0 0 0 0 0 1 0 0
-# 0 1 0 1 0 1 1 0 1 0
-# 0 1 0 1 1 0 0 0 0 0
-# 0 1 0 0 0 0 1 0 1 0
+
 
 try:
     with open('input_grid.txt', 'r') as f:
