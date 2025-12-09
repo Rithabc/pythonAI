@@ -103,7 +103,7 @@ joblib.dump(xgb_model, 'model_xgboost.pkl')
 
 print("\n=== Training MLP ===")
 model = MLP()
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.1)
 
 epochs = 200
 for epoch in range(epochs):
@@ -139,18 +139,28 @@ try:
     obstacle_density = num_obstacles / len(flat_grid)
     num_bots = len(flat_grid) - num_obstacles
     
-    input_features = torch.FloatTensor([[size, num_obstacles, obstacle_density, num_bots]])
-    input_features_np = np.array([[size, num_obstacles, obstacle_density, num_bots]])
+    print(f"\nInput grid analysis:")
+    print(f"  Size: {size}x{size}")
+    print(f"  Obstacles: {num_obstacles}")
+    print(f"  Free cells: {num_bots}")
+    print(f"  Density: {obstacle_density:.2f}")
     
-    with torch.no_grad():
-        linear_pred = linear_model(input_features)
-        mlp_pred = model(input_features)
-    xgb_pred = xgb_model.predict(input_features_np)
-    
-    print(f"\nPrediction for input grid:")
-    print(f"  Features: size={size}, obstacles={num_obstacles}, density={obstacle_density:.2f}, free={num_bots}")
-    print(f"  Linear Regression: {linear_pred.item():.0f}")
-    print(f"  XGBoost: {xgb_pred[0]:.0f}")
-    print(f"  MLP: {mlp_pred.item():.0f}")
+    if num_bots == 0:
+        print("\n⚠️  INVALID GRID: No free cells (all obstacles). Cannot predict moves.")
+    elif num_bots == 1:
+        print("\n✓ Only 1 free cell. Optimal moves: 0")
+    else:
+        input_features = torch.FloatTensor([[size, num_obstacles, obstacle_density, num_bots]])
+        input_features_np = np.array([[size, num_obstacles, obstacle_density, num_bots]])
+        
+        with torch.no_grad():
+            linear_pred = linear_model(input_features)
+            mlp_pred = model(input_features)
+        xgb_pred = xgb_model.predict(input_features_np)
+        
+        print(f"\nPredictions:")
+        print(f"  Linear Regression: {linear_pred.item():.0f}")
+        print(f"  XGBoost: {xgb_pred[0]:.0f}")
+        print(f"  MLP: {mlp_pred.item():.0f}")
 except FileNotFoundError:
     print("\nNo input_grid.txt found.")
