@@ -205,6 +205,15 @@ def predict_input_grid(linear_model, mlp_model, xgb_model, cnn_model=None, cnn_m
 # Main
 # ================================
 if __name__ == '__main__':
+    import subprocess
+    import sys
+    
+    size = input("Enter grid size: ")
+    result = subprocess.run(['generate_and_save.exe'], input=size, text=True, capture_output=True)
+    if result.returncode != 0:
+        print("Error generating grid")
+        sys.exit(1)
+    
     grids, labels, max_size = load_data('grid_maps.txt')
     features = extract_features(grids)
     X_train, X_test, y_train, y_test = train_test_split(features, labels, test_size=0.2, random_state=42)

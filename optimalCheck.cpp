@@ -134,15 +134,7 @@ vector<vector<int>> generateGrid(int n)
 
     dfs(ind, ind, n, grid);
 
-    
-    
-    
-    
-    
-    
-    
-    
-    
+  
     return grid;
 }
 
@@ -584,7 +576,39 @@ void aStarSearch(int **grid, Pair src, Pair dest, int size)
     return;
 }
 
+int getPythonPrediction(int size, int **grid) {
+    ofstream outFile("input_grid.txt");
+    outFile << size << "\n";
+    for (int i = 0; i < size; i++) {
+        for (int j = 0; j < size; j++) {
+            outFile << grid[i][j];
+        }
+        outFile << "\n";
+    }
+    outFile.close();
+    
+    FILE* pipe = _popen("python predict_only.py", "r");
+    if (!pipe) return 0;
+    
+    char buffer[256];
+    string result = "";
+    while (fgets(buffer, sizeof(buffer), pipe) != NULL) {
+        result += buffer;
+    }
+    _pclose(pipe);
+    
+    size_t pos = result.find("CNN:");
+    if (pos != string::npos) {
+        string cnn_line = result.substr(pos);
+        size_t num_start = cnn_line.find(":") + 1;
+        string num_str = cnn_line.substr(num_start);
+        return stoi(num_str);
+    }
+    return 0;
+}
+
 int minVal = 9999999;
+
 
 int algoUtil(int size, int **grid, Pair src, Pair dest, vector<pair<int, int>> bots, queue<Pair> temp ,bool random = true)
 {
@@ -747,28 +771,34 @@ int main()
     cin >> n;
     
 
-    for (int k = 5; k <= n; k = k + 1)
+    for (int k = 10; k <= n; k = k + 1)
     {
         
         float efficientAvg = 0;
         float optimalAvg = 0;
+        float optimalAvgWML = 0;
         float avg = 0;
 
         float efficientTime = 0;
         float optimalTime = 0;
+        float optimalTimeWML = 0;
         float avgTime = 0;
         
-        for (int w = 0; w < 1; w++)
+        for (int w = 0; w < 5; w++)
         {
 
-// 11111
-// 11111
-// 11111
-// 11111
-// 11110
+// 0000100010
+// 0110001000
+// 0111100110
+// 0010010010
+// 1010101010
+// 0010100011
+// 0100101000
+// 1001010110
+// 1011000010
+// 0000011000
 
-            vector<vector<int>> generatedGrid = generateGrid(k);
-
+            vector<vector<int>> generatedGrid =generateGrid(k);
 
             
 
@@ -778,10 +808,10 @@ int main()
                 grid[i] = new int[k];
                 for (int j = 0; j < k; j++)
                 {
-                    cout << generatedGrid[i][j] << "";
+                    // cout << generatedGrid[i][j] << "";
                     grid[i][j] = generatedGrid[i][j];
                 }
-                cout << "\n";
+                // cout << "\n";
             }
 
             
@@ -810,10 +840,13 @@ int main()
                     }
                 }
             }
+            
+            int mlPrediction = getPythonPrediction(k, grid);
+            
             auto start = std::chrono::high_resolution_clock::now();
 
             avg += algoUtil(k, grid, bots[0], bots[generateRandom(0, bots.size() - 1)], bots, temp);
-            minVal = 9999999;
+            minVal = 99999999;
 
             auto end = std::chrono::high_resolution_clock::now();
             auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
@@ -821,37 +854,71 @@ int main()
             
             avgTime += duration.count() / 1000000.0;
             
+            // RUN WITHOUT HEURISTIC
+            // cout << "\n=== WITHOUT ML HEURISTIC ===\n";
+            auto oStart1 = std::chrono::high_resolution_clock::now();
+            int max1 = 9999999;
+            minVal = 9999999;
+            vector<string> optimalAns1;
+            Pair dest1 = make_pair(-1, -1);
+            int checked1 = 0, skipped1 = 0;
             
+            for (int a = bots.size() -1; a >= 0; a--) {
+                int optimal = algoUtil(k, grid, bots[0], bots[a], bots, temp,false);
+                if (optimal == 9999999) {
+                    skipped1++;
+                } else {
+                    checked1++;
+                    if (optimal < max1) {
+                        minVal = optimal;
+                        max1 = optimal;
+                        optimalAns1 = directions;
+                        dest1 = bots[a];
+                    }
+                }
+            }
+            auto oEnd1 = std::chrono::high_resolution_clock::now();
+            auto oDuration1 = std::chrono::duration_cast<std::chrono::microseconds>(oEnd1 - oStart1);
+            // cout << "Time: " << oDuration1.count() / 1000000.0 << "s\n";
+             optimalTimeWML += oDuration1.count() / 1000000.0;
+            // cout << "Checked: " << checked1 << ", Skipped: " << skipped1 << "\n";
+            // cout << "Optimal: " << optimalAns1.size() << " moves\n";
+            optimalAvgWML += optimalAns1.size();
             
-            
-
+            // RUN WITH HEURISTIC
+            // cout << "\n=== WITH ML HEURISTIC (Prediction: " << mlPrediction << ") ===\n";
+            int max = 9999999;
+            minVal = mlPrediction > 0 ? mlPrediction + k * 2 : 9999999;
             auto oStart = std::chrono::high_resolution_clock::now();
-            int max = 999999;
             vector<string> optimalAns;
             Pair dest = make_pair(-1, -1);
-            for (int a = bots.size() -1; a >= 0; a--)
-            {
-                
-                
-                   
-                        int optimal = algoUtil(k, grid, bots[0], bots[a], bots, temp,false);
-                        if (optimal < max)
-                        {
-                            minVal = optimal;
-                            max = optimal;
-                            optimalAns = directions;
-                            dest = bots[a];
-                        }
-                    
-                    
+            int checked = 0, skipped = 0;
+            
+            for (int a = bots.size() -1; a >= 0; a--) {
+                int optimal = algoUtil(k, grid, bots[0], bots[a], bots, temp,false);
+                if (optimal == 9999999) {
+                    skipped++;
+                } else {
+                    checked++;
+                    if (optimal < max) {
+                        minVal = optimal;
+                        max = optimal;
+                        optimalAns = directions;
+                        dest = bots[a];
+                    }
+                }
             }
-        
-            
-            
-            minVal = 9999999;
             auto oEnd = std::chrono::high_resolution_clock::now();
             auto oDuration = std::chrono::duration_cast<std::chrono::microseconds>(oEnd - oStart);
+            // cout << "Time: " << oDuration.count() / 1000000.0 << "s\n";
+            // cout << "Checked: " << checked << ", Skipped: " << skipped << "\n";
+            // cout << "predicted: " << mlPrediction << ", actual: " << optimalAns.size() << "\n";
+            // cout << "Optimal: " << optimalAns.size() << " moves\n";
+            // cout << "\nSpeedup: " << (float)oDuration1.count() / oDuration.count() << "x\n";
+            
+            minVal = 9999999;
             optimalTime += oDuration.count() / 1000000.0;
+            
             optimalAvg += optimalAns.size();
 
             
@@ -873,7 +940,8 @@ int main()
             efficientAvg += efficientAns.size();
         }
         
-        cout <<k << " " << avg / 3 << " " << efficientAvg / 3 << " " << optimalAvg / 1 << " " << avgTime / 3 << " " << efficientTime / 3 << " " << optimalTime / 3 << "\n";
+        // cout <<k << " " << avg / 3 << " " << efficientAvg / 3 << " " << optimalAvg / 1 << " " << avgTime / 3 << " " << efficientTime / 3 << " " << optimalTime / 1 << "\n";
+        cout << k << " " << optimalAvgWML / 5 << " " << optimalAvg / 5 << " " << optimalTimeWML / 5 << " " << optimalTime / 5 << "\n";
     }
 
 
